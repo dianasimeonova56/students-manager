@@ -11,7 +11,7 @@ services:
     
   studentsmanager.mvc:
     container_name: studentsmanagermvc
-    image: profjordanov/studentsmanagermvc:8.0
+    image: profjordanov/studentsmanagermvc:10.0
     build:
       context: .
       dockerfile: StudentsManager.Mvc/Dockerfile      
