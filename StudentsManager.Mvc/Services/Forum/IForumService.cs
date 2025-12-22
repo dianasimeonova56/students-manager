@@ -13,5 +13,7 @@ namespace StudentsManager.Mvc.Services.Forum
         Task<ForumQuestion> SaveQuestionAsync(string question, Guid userId);
 
         Task<ForumComment> SaveCommentAsync(Comment input, Guid userId);
+
+        Task<List<string>> GetSlidoQuestionsAsync(int limit = 20, int skip = 0);
     }
 }
