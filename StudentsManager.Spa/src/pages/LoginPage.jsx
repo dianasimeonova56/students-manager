@@ -8,7 +8,7 @@ function LoginPage() {
 	const navigate = useNavigate();
 	const { login } = useAuth();
 
-	const [username, setUsername] = useState('');
+	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState('');
@@ -17,14 +17,14 @@ function LoginPage() {
 		e.preventDefault();
 		setError('');
 
-		if (!username.trim() || !password) {
-			setError('Please enter username and password.');
+		if (!email.trim() || !password) {
+			setError('Please enter email and password.');
 			return;
 		}
 
 		setIsSubmitting(true);
 		try {
-			const result = await Login({ username: username.trim(), password });
+			const result = await Login({ email: email.trim(), password });
 
 			const userId =
 				typeof result === 'string' || typeof result === 'number'
@@ -37,7 +37,7 @@ function LoginPage() {
 			}
 
 			login(String(userId));
-			navigate('/profile');
+			navigate('/home');
 		} catch (err) {
 			const message =
 				err?.response?.data?.message ||
@@ -56,11 +56,11 @@ function LoginPage() {
 			<h1 id="login-title">Login</h1>
 			<form className="auth-form" onSubmit={onSubmit}>
 				<label className="form-row">
-					<span>Username</span>
+					<span>Email</span>
 					<input
-						value={username}
-						onChange={(e) => setUsername(e.target.value)}
-						autoComplete="username"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						autoComplete="email"
 						required
 					/>
 				</label>
