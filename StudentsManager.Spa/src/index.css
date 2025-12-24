@@ -6720,12 +6720,6 @@ form div.tooltip-div {
     }
 }
 
-@media (max-width:719px) (min-width:1025px) {
-    .advice-section .addition-txt {
-        top: 4.58vw
-    }
-}
-
 .advice-section .intro-test-txt-box.white-box {
     float: left;
     position: relative
