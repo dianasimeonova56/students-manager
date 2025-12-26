@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import gsap from 'gsap';
@@ -9,33 +9,54 @@ function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isScrolledDown, setIsScrolledDown] = useState(false);
     const lastScrollTop = useRef(0);
+    const tickingRef = useRef(false);
     const headerRef = useRef(null);
     const menuItemsRef = useRef([]);
+    const mobileMenuButtonRef = useRef(null);
+
+    const menuItemCallbacks = useMemo(
+        () =>
+            Array.from({ length: 3 }, (_, i) => (el) => {
+                menuItemsRef.current[i] = el;
+            }),
+        []
+    );
 
     useEffect(() => {
         if (isMobileMenuOpen) {
+            document.body.classList.add('no-scroll');
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
         } else {
+            document.body.classList.remove('no-scroll');
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
         }
-
         return () => {
+            document.body.classList.remove('no-scroll');
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
         };
     }, [isMobileMenuOpen]);
 
     useEffect(() => {
-        const handleScroll = () => {
-            const scrollTop = window.scrollY;
-            const headerHeightThreshold = 105;
+        const headerHeightThreshold = 105;
 
-            if (scrollTop > headerHeightThreshold) {
-                setIsScrolledDown(scrollTop > lastScrollTop.current);
-            }
-            lastScrollTop.current = scrollTop;
+        const handleScroll = () => {
+            if (tickingRef.current) return;
+            tickingRef.current = true;
+
+            requestAnimationFrame(() => {
+                const scrollTop = window.scrollY || window.pageYOffset || 0;
+
+                if (scrollTop > headerHeightThreshold) {
+                    setIsScrolledDown(scrollTop > lastScrollTop.current);
+                } else {
+                    setIsScrolledDown(false);
+                }
+                lastScrollTop.current = scrollTop;
+                tickingRef.current = false;
+            });
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
@@ -43,13 +64,14 @@ function Header() {
     }, []);
 
     useEffect(() => {
-        if (!isMobileMenuOpen || menuItemsRef.current.length === 0) {
-            return;
-        }
-
+        if (!isMobileMenuOpen) return;
+        const scope = headerRef.current || undefined;
         const ctx = gsap.context(() => {
+            const items = menuItemsRef.current.filter(Boolean);
+            if (items.length === 0) return;
+
             gsap.fromTo(
-                menuItemsRef.current,
+                items,
                 { autoAlpha: 0, y: 15 },
                 {
                     autoAlpha: 1,
@@ -57,26 +79,42 @@ function Header() {
                     duration: 0.8,
                     delay: 0.6,
                     ease: 'power4.out',
-                    stagger: 0.12
+                    stagger: 0.12,
                 }
             );
-        });
+        }, scope);
 
         return () => ctx.revert();
     }, [isMobileMenuOpen]);
 
+    useEffect(() => {
+        if (!isMobileMenuOpen) return;
+
+        const first = menuItemsRef.current.find(Boolean);
+        if (first && typeof first.focus === 'function') {
+            first.focus();
+        }
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                setIsMobileMenuOpen(false);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            if (mobileMenuButtonRef.current) {
+                mobileMenuButtonRef.current.focus();
+            }
+        };
+    }, [isMobileMenuOpen]);
+
     const toggleMobileMenu = useCallback(() => {
-        setIsMobileMenuOpen(prev => !prev);
+        setIsMobileMenuOpen((prev) => !prev);
     }, []);
 
     const closeMobileMenu = useCallback(() => {
         setIsMobileMenuOpen(false);
-    }, []);
-
-    const setMenuItemRef = useCallback((index) => (el) => {
-        if (el) {
-            menuItemsRef.current[index] = el;
-        }
     }, []);
 
     const handleLogout = useCallback(() => {
@@ -87,8 +125,10 @@ function Header() {
     const headerClassName = [
         'header',
         isMobileMenuOpen && 'active-mobile-menu',
-        isScrolledDown && 'down-state'
-    ].filter(Boolean).join(' ');
+        isScrolledDown && 'down-state',
+    ]
+        .filter(Boolean)
+        .join(' ');
 
     return (
         <header ref={headerRef} className={headerClassName}>
@@ -97,17 +137,19 @@ function Header() {
                 <div className="mobile-menu-row">
                     <div className="mobile-logo-container">
                         <Link to="/" className="mobile-logo-link" onClick={closeMobileMenu}>
-                            <img src="/images/icons/logo.svg" alt="logo" className="template-image" />
+                            <img src={logo} alt="Students Manager — Home" className="template-image" />
                         </Link>
                     </div>
                     <div className="mobile-menu-container">
                         <div className="mobile-menu-btn-wrap">
                             <button
+                                ref={mobileMenuButtonRef}
                                 type="button"
                                 className={`menu-btn ${isMobileMenuOpen ? 'active' : ''}`}
                                 onClick={toggleMobileMenu}
                                 aria-label="Toggle menu"
                                 aria-expanded={isMobileMenuOpen}
+                                aria-controls="main-navigation"
                             >
                                 <span className="lines-wrap">
                                     <span className="line line1" />
@@ -122,9 +164,14 @@ function Header() {
                 {/* Desktop Header */}
                 <div className="header-box">
                     <div className="header-box-inner">
-                        <nav className="nav">
+                        <nav
+                            id="main-navigation"
+                            className="nav"
+                            role="navigation"
+                            aria-hidden={!isMobileMenuOpen && undefined}
+                        >
                             <ul className="menu menu-left">
-                                <li className="menu-item" ref={setMenuItemRef(0)}>
+                                <li className="menu-item" ref={menuItemCallbacks[0]}>
                                     <Link to="/profile" className="menu-link" onClick={closeMobileMenu}>
                                         Profile
                                     </Link>
@@ -133,12 +180,12 @@ function Header() {
 
                             <h1 className="logo">
                                 <Link to="/" className="logo-link desktop" onClick={closeMobileMenu}>
-                                    <img src={logo} alt="Logo" />
+                                    <img src={logo} alt="Students Manager — Home" />
                                 </Link>
                             </h1>
 
                             <ul className="menu menu-right">
-                                <li className="menu-item" ref={setMenuItemRef(1)}>
+                                <li className="menu-item" ref={menuItemCallbacks[1]}>
                                     <Link to="/slido" className="menu-link" onClick={closeMobileMenu}>
                                         Slido
                                     </Link>
@@ -146,23 +193,15 @@ function Header() {
                             </ul>
                         </nav>
 
-                        <div className="login-container" ref={setMenuItemRef(2)}>
+                        <div className="login-container" ref={menuItemCallbacks[2]}>
                             <div className="login-container-inner">
                                 <div className="login-btn-wrap">
                                     {isLoggedIn ? (
-                                        <button
-                                            type="button"
-                                            className="login btn"
-                                            onClick={handleLogout}
-                                        >
+                                        <button type="button" className="login btn" onClick={handleLogout}>
                                             Logout
                                         </button>
                                     ) : (
-                                        <Link
-                                            to="/login"
-                                            className="login btn"
-                                            onClick={closeMobileMenu}
-                                        >
+                                        <Link to="/login" className="login btn" onClick={closeMobileMenu}>
                                             Login
                                         </Link>
                                     )}
