@@ -18,6 +18,8 @@ A web application built on .NET, React, MSSQL, Azure, and OpenAI, designed to ma
 
 [![CodeQL](https://github.com/profjordanov/students-manager/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/profjordanov/students-manager/actions/workflows/github-code-scanning/codeql)
 
+[![CodeFactor](https://www.codefactor.io/repository/github/profjordanov/students-manager/badge)](https://www.codefactor.io/repository/github/profjordanov/students-manager)
+
 ## MVC Frontend (main.js + chatbot)
 
 ### main.js
