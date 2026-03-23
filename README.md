@@ -145,6 +145,20 @@ curl --request POST \
 }
 ```
 
+### Events
+
+**Request**
+
+```bash
+curl --location 'https://localhost:5001/api/events' \
+--header 'Content-Type: application/json' \
+--data '{
+    "userId":"123123",
+    "type":"test",
+    "data":"temp"
+}'
+```
+
 
 
 ## 🚀 Technologies

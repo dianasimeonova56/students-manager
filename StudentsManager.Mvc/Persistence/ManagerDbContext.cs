@@ -45,6 +45,8 @@ namespace StudentsManager.Mvc.Persistence
 
         public DbSet<UserCoursework> UserCourseworks { get; set; }
 
+        public DbSet<Event> Events { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.ConfigureQuestionOptionRelations();

@@ -17,7 +17,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddRazorPages();
 builder.Services.AddControllersWithViews().AddNewtonsoftJson();
 builder.Services.AddCrossOriginResourceSharing();
-builder.Services.AddHostedServices();
+//builder.Services.AddHostedServices();
 
 var app = builder.Build();
 
