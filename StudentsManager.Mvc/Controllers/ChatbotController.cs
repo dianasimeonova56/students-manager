@@ -1,45 +1,107 @@
+using System.Text;
+using System.Text.Json;
+using Azure;
+using Azure.AI.OpenAI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
+using Microsoft.Extensions.Options;
+using OpenAI.Chat;
 using StudentsManager.Mvc.Domain.Entities;
 using StudentsManager.Mvc.Persistence;
+using StudentsManager.Mvc.Settings;
 
 namespace StudentsManager.Mvc.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class ChatbotController(ManagerDbContext managerDbContext) : ControllerBase
+public class ChatbotController(
+    ManagerDbContext managerDbContext,
+    IOptions<ServiceBusSettings> options)
+    : ControllerBase
 {
-    // GET: api/chatbot/examination-answers/022a6007-f33c-47c3-b811-08de88b121f2
-    [HttpGet("examination-answers/{studentId}")]
-    public async Task<IActionResult> Get([FromRoute] Guid studentId)
+    private const string SystemPrompt = """
+                                        You are a senior JavaScript quiz evaluator. Your task is to analyze the given quiz answers and provide:
+                                        1. A grade between 1 and 10.
+                                        2. Overall feedback summarizing the performance.
+                                        
+                                        Respond in JSON format using the structure below:
+                                        {
+                                          "grade": <1-10>,
+                                          "overallFeedback": "<summary>"
+                                        }
+                                        """;
+
+    [HttpGet("examination-answers/{studentId:guid}")]
+    public async Task<IActionResult> GetByStudent([FromRoute] Guid studentId, CancellationToken cancellationToken)
     {
         var result = await managerDbContext.ExaminationAnswers
+            .AsNoTracking()
             .Where(answer => answer.UserId == studentId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(result);
     }
 
-    // POST: api/chatbot/examination-answers
     [HttpPost("examination-answers")]
-    public async Task<IActionResult> Post([FromBody] ChatbotExaminationInput input)
+    public async Task<IActionResult> EvaluateAnswers([FromBody] ChatbotExaminationInput input, CancellationToken cancellationToken)
     {
         if (input.Answers.Length == 0)
             return BadRequest("Answers cannot be empty.");
+
+        var settings = options.Value;
+        var azureClient = new AzureOpenAIClient(new Uri(settings.AzureConnectionString), new AzureKeyCredential(settings.QueueName));
+        var chatClient = azureClient.GetChatClient("gpt-4.1-nano");
+
+        var serializedAnswers = JsonSerializer.Serialize(input.Answers);
+        var userPrompt = $"Evaluate these JavaScript quiz answers:\n{serializedAnswers}";
+        var responseText = string.Empty;
+        var errorMessage = string.Empty;
+
+        try
+        {
+            var requestOptions = new ChatCompletionOptions
+            {
+                Temperature = 1.0f,
+                TopP = 1.0f,
+                FrequencyPenalty = 0.0f,
+                PresencePenalty = 0.0f,
+                MaxOutputTokenCount = 13107
+            };
+
+            var response = await chatClient.CompleteChatAsync(
+            [
+                new SystemChatMessage(SystemPrompt),
+                new UserChatMessage(userPrompt)
+            ],
+            requestOptions, cancellationToken);
+
+            var sb = new StringBuilder();
+            foreach (var part in response.Value.Content)
+            {
+                sb.Append(part.Text);
+            }
+
+            responseText = sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
 
         var entity = new ExaminationAnswer
         {
             Id = Guid.NewGuid(),
             UserId = input.UserId,
             CreatedOn = DateTime.UtcNow,
-            Result = JsonConvert.SerializeObject(input.Answers),
+            Result = serializedAnswers,
             ContentType = "chatbot",
-            WasSuccessfullyProcessed = true
+            WasSuccessfullyProcessed = !string.IsNullOrEmpty(responseText),
+            Form = responseText,
+            ErrorMessage = errorMessage
         };
 
-        await managerDbContext.AddAsync(entity);
-        await managerDbContext.SaveChangesAsync();
+        await managerDbContext.AddAsync(entity, cancellationToken);
+        await managerDbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(entity);
     }
