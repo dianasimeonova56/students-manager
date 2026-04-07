@@ -189,12 +189,17 @@ Example response:
 **POST save results**
 
 ```bash
-curl --location 'https://students-manager-dev.azurewebsites.net/api/chatbot/save_results' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "res": "[{\"question\":\"Welcome! Shall we start with some basic JS questions?\",\"answer\":\"Yes\"}]",
-    "name": "John Doe",
-    "email": "john.doe@example.com"
+curl "https://students-manager-dev.azurewebsites.net/api/chatbot/examination-answers" \
+  -H "Content-Type: application/json" \
+  --data-raw '{
+    "userId": "022a6007-f33c-47c3-b811-08de88b121f2",
+    "answers": [
+      {
+        "questionId": "q123123",
+        "questionText": "What is programming?",
+        "answer": "programming is .."
+      }
+    ]
   }'
 ```
 
