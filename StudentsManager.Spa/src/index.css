@@ -337,12 +337,12 @@ button:focus {
     width: 75%
 }
 
-    .col-d-50.abs-square {
+    .col-d-75.abs-square {
         position: relative;
         padding-bottom: 50%
     }
 
-        .col-d-50.abs-square.half {
+        .col-d-75.abs-square.half {
             padding-bottom: 37%
         }
 
